@@ -1,0 +1,31 @@
+# MRCR Evaluation Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Context window
+max_context_tokens: 190000   # Keep 2k headroom below Kimi's 192k limit
+
+# Sampling
+num_samples: 20              # Number of MRCR samples to evaluate
+seed: 42                     # Random seed (change per run for unique samples)
+
+# Model (reads from LITE_LLM_* env vars by default; override here if needed)
+# model_name: kimi-latest    # Uncomment to hard-code instead of env var
+temperature: 0               # Deterministic decoding
+max_out_len: 8192            # Max tokens for model response (must be large — model reasons before answering)
+query_per_second: 1          # Rate limit (calls/sec)
+retry: 3                     # Retry attempts on API failure
+timeout: 3600                # Per-request timeout (seconds)
+batch_size: 1                # Inference batch size
+max_workers: 5               # Concurrent API threads — must not exceed gateway's max_parallel_requests
+
+# Dataset
+dataset_name: "openai/mrcr"
+dataset_split: "train"
+
+# Output
+output_dir: "outputs/mrcr"
+
+# Tokenizer (for token counting / truncation)
+tokenizer_encoding: "cl100k_base"   # tiktoken encoding compatible with most models
+
+# Advanced truncation
+# overhead_tokens: 300       # Reserved for instruction + formatting overhead
