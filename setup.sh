@@ -118,7 +118,7 @@ source venv/bin/activate
 # ── Upgrade pip and install build tools ───────────────────────────────────────
 echo ""
 echo "[6/8] Upgrading pip and installing build tools..."
-pip install --quiet --upgrade pip setuptools wheel
+venv/bin/pip install --quiet --upgrade pip setuptools wheel
 
 # ── Install Python dependencies ───────────────────────────────────────────────
 echo ""
@@ -127,7 +127,7 @@ echo "This may take 5-10 minutes..."
 echo ""
 
 # Install all dependencies in one go for better dependency resolution
-pip install --quiet \
+venv/bin/pip install --quiet \
     pyyaml \
     python-dotenv \
     tiktoken \
@@ -136,16 +136,40 @@ pip install --quiet \
     tqdm \
     opencompass || {
         echo "WARNING: Some packages may have failed. Retrying with individual installs..."
+        # Retry individually if bulk install fails
+        venv/bin/pip install --quiet pyyaml || echo "  ✗ pyyaml failed"
+        venv/bin/pip install --quiet python-dotenv || echo "  ✗ python-dotenv failed"
+        venv/bin/pip install --quiet tiktoken || echo "  ✗ tiktoken failed"
+        venv/bin/pip install --quiet datasets || echo "  ✗ datasets failed"
+        venv/bin/pip install --quiet huggingface-hub || echo "  ✗ huggingface-hub failed"
+        venv/bin/pip install --quiet tqdm || echo "  ✗ tqdm failed"
+        venv/bin/pip install --quiet opencompass || echo "  ✗ opencompass failed"
     }
 
-# Verify critical packages
+# Verify critical packages using venv python
 echo ""
 echo "Verifying installations..."
-python3 -c "import yaml" 2>/dev/null && echo "  ✓ PyYAML" || echo "  ✗ PyYAML FAILED"
-python3 -c "import dotenv" 2>/dev/null && echo "  ✓ python-dotenv" || echo "  ✗ python-dotenv FAILED"
-python3 -c "import tiktoken" 2>/dev/null && echo "  ✓ tiktoken" || echo "  ✗ tiktoken FAILED"
-python3 -c "import datasets" 2>/dev/null && echo "  ✓ datasets" || echo "  ✗ datasets FAILED"
-python3 -c "import opencompass" 2>/dev/null && echo "  ✓ opencompass" || echo "  ✗ opencompass FAILED"
+venv/bin/python -c "import yaml" 2>/dev/null && echo "  ✓ PyYAML" || { echo "  ✗ PyYAML FAILED - attempting fix..."; venv/bin/pip install --force-reinstall pyyaml; }
+venv/bin/python -c "import dotenv" 2>/dev/null && echo "  ✓ python-dotenv" || { echo "  ✗ python-dotenv FAILED - attempting fix..."; venv/bin/pip install --force-reinstall python-dotenv; }
+venv/bin/python -c "import tiktoken" 2>/dev/null && echo "  ✓ tiktoken" || { echo "  ✗ tiktoken FAILED - attempting fix..."; venv/bin/pip install --force-reinstall tiktoken; }
+venv/bin/python -c "import datasets" 2>/dev/null && echo "  ✓ datasets" || { echo "  ✗ datasets FAILED - attempting fix..."; venv/bin/pip install --force-reinstall datasets; }
+venv/bin/python -c "import opencompass" 2>/dev/null && echo "  ✓ opencompass" || { echo "  ✗ opencompass FAILED - attempting fix..."; venv/bin/pip install --force-reinstall opencompass; }
+
+# Final verification - fail if any critical package is missing
+echo ""
+echo "Final verification..."
+VERIFY_FAILED=0
+venv/bin/python -c "import yaml" 2>/dev/null || { echo "ERROR: PyYAML not installed"; VERIFY_FAILED=1; }
+venv/bin/python -c "import dotenv" 2>/dev/null || { echo "ERROR: python-dotenv not installed"; VERIFY_FAILED=1; }
+venv/bin/python -c "import tiktoken" 2>/dev/null || { echo "ERROR: tiktoken not installed"; VERIFY_FAILED=1; }
+venv/bin/python -c "import datasets" 2>/dev/null || { echo "ERROR: datasets not installed"; VERIFY_FAILED=1; }
+
+if [ $VERIFY_FAILED -eq 1 ]; then
+    echo ""
+    echo "ERROR: Critical Python packages failed to install. Please check the logs above."
+    exit 1
+fi
+echo "All critical packages verified successfully!"
 
 # ── Environment file setup ────────────────────────────────────────────────────
 echo ""
