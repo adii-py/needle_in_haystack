@@ -82,72 +82,59 @@ MODEL_NAME="${LITE_LLM_MODEL:-glm-latest}"
 # ═══════════════════════════════════════════════════════════════════════════════
 
 EXTRA_ARGS=""
-SKIP_NEXT=0
 while [[ $# -gt 0 ]]; do
-    if [ $SKIP_NEXT -eq 1 ]; then
-        SKIP_NEXT=0
-        shift
-        continue
-    fi
     case $1 in
         --context-sizes)
-            # Override context sizes
+            # Override context sizes (handles both space-separated and comma-separated)
             CONTEXT_SIZES=()
             shift
-            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
-                CONTEXT_SIZES+=("$1")
+            # Check if value is comma-separated
+            if [[ "$1" =~ , ]]; then
+                # Comma-separated: split into array
+                IFS=',' read -ra CONTEXT_SIZES <<< "$1"
                 shift
-            done
+            else
+                # Space-separated: collect all values until next flag
+                while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
+                    CONTEXT_SIZES+=("$1")
+                    shift
+                done
+            fi
             ;;
         --n-needles)
             N_NEEDLES="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --samples-per-bin)
             SAMPLES_PER_BIN="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --output-dir)
             OUTPUT_DIR="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --seed)
             SEED="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --log-level)
             LOG_LEVEL="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --config)
             CONFIG="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --model)
             MODEL_NAME="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --api-url)
             API_URL="$2"
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         --no-truncation)
             NO_TRUNCATION=true
-            # Also handle --no-truncation true/false
-            if [[ "$2" == "true" ]] || [[ "$2" == "false" ]]; then
-                SKIP_NEXT=1
-                if [[ "$2" == "false" ]]; then
-                    NO_TRUNCATION=false
-                fi
-            fi
             shift
             ;;
         --truncation)
@@ -156,13 +143,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --auto-bin)
             AUTO_BIN=true
-            # Also handle --auto-bin true/false
-            if [[ "$2" == "true" ]] || [[ "$2" == "false" ]]; then
-                SKIP_NEXT=1
-                if [[ "$2" == "false" ]]; then
-                    AUTO_BIN=false
-                fi
-            fi
             shift
             ;;
         --no-auto-bin)
@@ -171,8 +151,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --base-output-dir)
             # Skip - we handle output-dir directly
-            SKIP_NEXT=1
-            shift
+            shift 2
             ;;
         *)
             # Keep truly unknown args
@@ -190,6 +169,11 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILD COMMAND ARGUMENTS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# Debug: show what we parsed
+# echo "DEBUG: CONTEXT_SIZES=${CONTEXT_SIZES[*]}"
+# echo "DEBUG: N_NEEDLES=$N_NEEDLES"
+# echo "DEBUG: EXTRA_ARGS=$EXTRA_ARGS"
 
 # Start with the base command
 CMD_ARGS=""
