@@ -58,11 +58,11 @@ echo ""
 
 # ── Update package lists ─────────────────────────────────────────────────────
 echo "[1/8] Updating package lists..."
-sudo apt-get update -qq
+apt-get update -qq
 
 # ── Install system dependencies ───────────────────────────────────────────────
 echo "[2/8] Installing system dependencies..."
-sudo apt-get install -y -qq \
+apt-get install -y -qq \
     python3 \
     python3-pip \
     python3-venv \
