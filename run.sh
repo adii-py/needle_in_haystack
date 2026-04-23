@@ -136,14 +136,35 @@ while [[ $# -gt 0 ]]; do
         --no-truncation)
             NO_TRUNCATION=true
             shift
+            # Also handle --no-truncation true/false
+            if [[ "$1" == "true" ]] || [[ "$1" == "false" ]]; then
+                if [[ "$1" == "false" ]]; then
+                    NO_TRUNCATION=false
+                fi
+                shift
+            fi
             ;;
         --truncation)
             NO_TRUNCATION=false
             shift
+            # Also handle --truncation true/false
+            if [[ "$1" == "true" ]] || [[ "$1" == "false" ]]; then
+                if [[ "$1" == "true" ]]; then
+                    NO_TRUNCATION=false
+                fi
+                shift
+            fi
             ;;
         --auto-bin)
             AUTO_BIN=true
             shift
+            # Also handle --auto-bin true/false
+            if [[ "$1" == "true" ]] || [[ "$1" == "false" ]]; then
+                if [[ "$1" == "false" ]]; then
+                    AUTO_BIN=false
+                fi
+                shift
+            fi
             ;;
         --no-auto-bin)
             AUTO_BIN=false
@@ -151,7 +172,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --base-output-dir)
             # Skip - we handle output-dir directly
-            shift 2
+            shift
+            if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; then
+                shift
+            fi
             ;;
         *)
             # Keep truly unknown args
