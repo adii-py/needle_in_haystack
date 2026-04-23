@@ -398,28 +398,54 @@ def main() -> None:
         )
     logger.info("=" * 75)
 
-    # ── Save summary ───────────────────────────────────────────────────────────
-    summary = [
-        {
-            "context":                m["context_size"],
-            "context_label":          m["context_label"],
-            "accuracy":               m["accuracy"],
-            "exact_accuracy":         m["exact_accuracy"],
-            "avg_score":              m["avg_score"],
-            "accuracy_truncated":     m["accuracy_truncated"],
-            "accuracy_non_truncated": m["accuracy_non_truncated"],
-            "truncation_rate":        m["truncation_rate"],
-            "skip_rate":              m["skip_rate"],
-            "avg_coverage":           m["avg_coverage"],
-            "num_truncated":          m["num_truncated"],
-            "num_skipped":            m["num_skipped"],
-            "total":                  m["total"],
-            "min_tokens_filter":      min_tokens,
-            "auto_bin":               auto_bin,
+    # ── Save summary in required format ────────────────────────────────────────
+    # Calculate aggregate metrics
+    avg_accuracy = sum(m["accuracy"] for m in all_metrics if m["accuracy"] is not None) / len(all_metrics) if all_metrics else None
+    avg_exact_acc = sum(m["exact_accuracy"] for m in all_metrics if m["exact_accuracy"] is not None) / len(all_metrics) if all_metrics else None
+
+    # Build per-context metrics for secondary
+    per_context = {}
+    for m in all_metrics:
+        label = m["context_label"]
+        per_context[f"accuracy_{label}"] = m["accuracy"]
+
+    # Calculate additional metrics
+    total_samples = sum(m["total"] for m in all_metrics)
+    total_truncated = sum(m["num_truncated"] for m in all_metrics)
+    total_skipped = sum(m["num_skipped"] for m in all_metrics)
+    avg_truncation_rate = sum(m["truncation_rate"] for m in all_metrics) / len(all_metrics) if all_metrics else None
+    avg_skip_rate = sum(m["skip_rate"] for m in all_metrics) / len(all_metrics) if all_metrics else None
+    avg_coverage = sum(m["avg_coverage"] for m in all_metrics if m["avg_coverage"] is not None) / len(all_metrics) if all_metrics else None
+
+    # Build output in required format
+    summary = {
+        "metrics": {
+            "main": {
+                "name": "average_accuracy",
+                "value": round(avg_accuracy, 4) if avg_accuracy is not None else None
+            },
+            "secondary": {
+                **{f"accuracy_{m['context_label']}": round(m["accuracy"], 4) if m["accuracy"] is not None else None for m in all_metrics},
+                **{f"exact_accuracy_{m['context_label']}": round(m["exact_accuracy"], 4) if m["exact_accuracy"] is not None else None for m in all_metrics},
+            },
+            "additional": {
+                "n_needles": n_needles,
+                "context_sizes": context_sizes,
+                "auto_bin": auto_bin,
+                "samples_per_bin": samples_per_bin,
+                "total_samples": total_samples,
+                "total_truncated": total_truncated,
+                "total_skipped": total_skipped,
+                "avg_truncation_rate": round(avg_truncation_rate, 4) if avg_truncation_rate is not None else None,
+                "avg_skip_rate": round(avg_skip_rate, 4) if avg_skip_rate is not None else None,
+                "avg_coverage": round(avg_coverage, 4) if avg_coverage is not None else None,
+                "min_tokens_filter": min_tokens,
+                "seed": seed,
+            }
         }
-        for m in all_metrics
-    ]
-    summary_path = Path(output_dir) / "multi_context_summary.json"
+    }
+
+    summary_path = Path(output_dir) / f"{run_id}_results.json"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
