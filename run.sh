@@ -41,40 +41,151 @@ fi
 API_KEY="$1"
 RUN_ID="$2"
 shift 2
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# DEFAULT CONFIGURATION
+# DEFAULT CONFIGURATION (Parse overrides first, then build CMD_ARGS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Context window sizes to test (tokens)
-DEFAULT_CONTEXT_SIZES=(64000 128000 192000)
+CONTEXT_SIZES=(64000 128000 192000)
 
 # Needle count filter (2, 4, or 8)
-DEFAULT_N_NEEDLES=2
+N_NEEDLES=2
 
 # Skip over-limit samples instead of truncating (official behavior)
-DEFAULT_NO_TRUNCATION=true
+NO_TRUNCATION=true
 
 # Use auto-bin mode (each context size runs non-overlapping samples)
-DEFAULT_AUTO_BIN=true
+AUTO_BIN=true
 
 # Samples per bin
-DEFAULT_SAMPLES_PER_BIN=100
+SAMPLES_PER_BIN=100
 
-# Output directory - will append RUN_ID
-DEFAULT_OUTPUT_DIR="outputs/mrcr/${RUN_ID}_needle${DEFAULT_N_NEEDLES}"
+# Output directory (will be computed after parsing args)
+OUTPUT_DIR=""
 
 # Log level (DEBUG, INFO, WARNING, ERROR)
-DEFAULT_LOG_LEVEL="INFO"
+LOG_LEVEL="INFO"
 
 # Config file path
-DEFAULT_CONFIG="evals/mrcr/config.yaml"
+CONFIG="evals/mrcr/config.yaml"
 
 # Random seed
-DEFAULT_SEED=42
+SEED=42
 
 # API URL (can be overridden via env or arg)
 API_URL="${LITE_LLM_URL:-https://grid.ai.juspay.net}"
 MODEL_NAME="${LITE_LLM_MODEL:-glm-latest}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PARSE OVERRIDES FROM ARGUMENTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+EXTRA_ARGS=""
+SKIP_NEXT=0
+while [[ $# -gt 0 ]]; do
+    if [ $SKIP_NEXT -eq 1 ]; then
+        SKIP_NEXT=0
+        shift
+        continue
+    fi
+    case $1 in
+        --context-sizes)
+            # Override context sizes
+            CONTEXT_SIZES=()
+            shift
+            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; do
+                CONTEXT_SIZES+=("$1")
+                shift
+            done
+            ;;
+        --n-needles)
+            N_NEEDLES="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --samples-per-bin)
+            SAMPLES_PER_BIN="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --output-dir)
+            OUTPUT_DIR="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --seed)
+            SEED="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --log-level)
+            LOG_LEVEL="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --config)
+            CONFIG="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --model)
+            MODEL_NAME="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --api-url)
+            API_URL="$2"
+            SKIP_NEXT=1
+            shift
+            ;;
+        --no-truncation)
+            NO_TRUNCATION=true
+            # Also handle --no-truncation true/false
+            if [[ "$2" == "true" ]] || [[ "$2" == "false" ]]; then
+                SKIP_NEXT=1
+                if [[ "$2" == "false" ]]; then
+                    NO_TRUNCATION=false
+                fi
+            fi
+            shift
+            ;;
+        --truncation)
+            NO_TRUNCATION=false
+            shift
+            ;;
+        --auto-bin)
+            AUTO_BIN=true
+            # Also handle --auto-bin true/false
+            if [[ "$2" == "true" ]] || [[ "$2" == "false" ]]; then
+                SKIP_NEXT=1
+                if [[ "$2" == "false" ]]; then
+                    AUTO_BIN=false
+                fi
+            fi
+            shift
+            ;;
+        --no-auto-bin)
+            AUTO_BIN=false
+            shift
+            ;;
+        --base-output-dir)
+            # Skip - we handle output-dir directly
+            SKIP_NEXT=1
+            shift
+            ;;
+        *)
+            # Keep truly unknown args
+            EXTRA_ARGS="$EXTRA_ARGS $1"
+            shift
+            ;;
+    esac
+done
+
+# Compute output directory if not explicitly set
+if [ -z "$OUTPUT_DIR" ]; then
+    OUTPUT_DIR="outputs/mrcr/${RUN_ID}_needle${N_NEEDLES}"
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILD COMMAND ARGUMENTS
@@ -84,67 +195,37 @@ MODEL_NAME="${LITE_LLM_MODEL:-glm-latest}"
 CMD_ARGS=""
 
 # Context sizes
-if [ ${#DEFAULT_CONTEXT_SIZES[@]} -gt 0 ]; then
-    CMD_ARGS="$CMD_ARGS --context-sizes ${DEFAULT_CONTEXT_SIZES[@]}"
+if [ ${#CONTEXT_SIZES[@]} -gt 0 ]; then
+    CMD_ARGS="$CMD_ARGS --context-sizes ${CONTEXT_SIZES[@]}"
 fi
 
 # N-needles
-CMD_ARGS="$CMD_ARGS --n-needles $DEFAULT_N_NEEDLES"
+CMD_ARGS="$CMD_ARGS --n-needles $N_NEEDLES"
 
 # No truncation
-if [ "$DEFAULT_NO_TRUNCATION" = true ]; then
+if [ "$NO_TRUNCATION" = true ]; then
     CMD_ARGS="$CMD_ARGS --no-truncation"
 fi
 
 # Auto bin
-if [ "$DEFAULT_AUTO_BIN" = true ]; then
+if [ "$AUTO_BIN" = true ]; then
     CMD_ARGS="$CMD_ARGS --auto-bin"
 fi
 
 # Samples per bin
-CMD_ARGS="$CMD_ARGS --samples-per-bin $DEFAULT_SAMPLES_PER_BIN"
+CMD_ARGS="$CMD_ARGS --samples-per-bin $SAMPLES_PER_BIN"
 
 # Output directory
-CMD_ARGS="$CMD_ARGS --output-dir $DEFAULT_OUTPUT_DIR"
+CMD_ARGS="$CMD_ARGS --output-dir $OUTPUT_DIR"
 
 # Config file
-CMD_ARGS="$CMD_ARGS --config $DEFAULT_CONFIG"
+CMD_ARGS="$CMD_ARGS --config $CONFIG"
 
 # Seed
-CMD_ARGS="$CMD_ARGS --seed $DEFAULT_SEED"
+CMD_ARGS="$CMD_ARGS --seed $SEED"
 
 # Log level
-CMD_ARGS="$CMD_ARGS --log-level $DEFAULT_LOG_LEVEL"
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# OVERRIDE HANDLING (Process remaining arguments)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-EXTRA_ARGS=""
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --n-needles|--output-dir|--seed|--log-level|--config|--samples-per-bin|--context-sizes)
-            # These override the defaults
-            EXTRA_ARGS="$EXTRA_ARGS $1 $2"
-            # Update default output dir if n-needles changes
-            if [ "$1" = "--n-needles" ]; then
-                DEFAULT_N_NEEDLES="$2"
-                DEFAULT_OUTPUT_DIR="outputs/mrcr/${RUN_ID}_needle${DEFAULT_N_NEEDLES}"
-            fi
-            shift 2
-            ;;
-        --no-truncation|--auto-bin|--truncation|--no-auto-bin)
-            # Toggle flags
-            EXTRA_ARGS="$EXTRA_ARGS $1"
-            shift
-            ;;
-        *)
-            # Pass through unknown args
-            EXTRA_ARGS="$EXTRA_ARGS $1"
-            shift
-            ;;
-    esac
-done
+CMD_ARGS="$CMD_ARGS --log-level $LOG_LEVEL"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RUN EVALUATION
@@ -175,8 +256,8 @@ export LITE_LLM_MODEL="$MODEL_NAME"
 echo "Configuration:"
 echo "  Model:      $MODEL_NAME"
 echo "  API URL:    $API_URL"
-echo "  Config:     $DEFAULT_CONFIG"
-echo "  Output:     $DEFAULT_OUTPUT_DIR"
+echo "  Config:     $CONFIG"
+echo "  Output:     $OUTPUT_DIR"
 echo ""
 echo "Running: python -m evals.mrcr.run_multi_context $CMD_ARGS $EXTRA_ARGS"
 echo ""
@@ -187,4 +268,4 @@ python -m evals.mrcr.run_multi_context $CMD_ARGS $EXTRA_ARGS
 echo ""
 echo "Evaluation complete!"
 echo "Run ID: $RUN_ID"
-echo "Output: $DEFAULT_OUTPUT_DIR"
+echo "Output: $OUTPUT_DIR"
