@@ -1,15 +1,22 @@
 #!/bin/bash
-# run.sh — Quick run script with pre-configured defaults for MRCR evaluation
+# run.sh — Benchmark execution script for MRCR evaluation
 #
 # Usage:
 #   ./run.sh <API_KEY> <RUN_ID> [other_options]
 #
+# Creates output directory in CURRENT WORKING DIRECTORY:
+#   ./output/
+#   ./output/${RUN_ID}_results.json
+#   ./output/${RUN_ID}.log
+#
 # Example:
-#   ./run.sh sk-FDSlUBMxV9PbH5-Y_Rxxxx 37ab8300-288c-4a2a-950b-df53124f0b23
-#   ./run.sh sk-xxxx run-id-123 --n-needles 4 --output-dir custom/path
+#   ./run.sh sk-xxxx run-001
+#   ./run.sh sk-xxxx run-002 --n-needles 4
 
-set -e
-cd "$(dirname "$0")"
+set -euo pipefail
+
+# Script directory for finding venv/config
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PARSE REQUIRED ARGUMENTS (API_KEY and RUN_ID)
@@ -67,8 +74,8 @@ OUTPUT_DIR=""
 # Log level (DEBUG, INFO, WARNING, ERROR)
 LOG_LEVEL="INFO"
 
-# Config file path
-CONFIG="evals/mrcr/config.yaml"
+# Config file path (relative to script)
+CONFIG="${SCRIPT_DIR}/evals/mrcr/config.yaml"
 
 # Random seed
 SEED=42
@@ -186,8 +193,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Compute output directory if not explicitly set
+# Default: ./output/ in current working directory
 if [ -z "$OUTPUT_DIR" ]; then
-    OUTPUT_DIR="outputs/mrcr/${RUN_ID}_needle${N_NEEDLES}"
+    OUTPUT_DIR="./output"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -247,14 +255,15 @@ echo "Run ID:     $RUN_ID"
 echo "API Key:    ${API_KEY:0:10}..."
 echo ""
 
-# Check if venv exists
-if [ ! -d "venv" ]; then
+# Check if venv exists (relative to script location)
+VENV_DIR="${SCRIPT_DIR}/venv"
+if [ ! -d "$VENV_DIR" ]; then
     echo "Virtual environment not found. Running setup first..."
-    ./setup.sh
+    "${SCRIPT_DIR}/setup.sh"
 fi
 
 # Activate venv
-source venv/bin/activate
+source "${VENV_DIR}/bin/activate"
 
 # Export required environment variables
 export LITE_LLM_API_KEY="$API_KEY"
