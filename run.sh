@@ -5,7 +5,7 @@
 #   ./run.sh <api_key_starting_with_sk-> <uuid_run_id> --concurrency N --domain D --max-steps N --model M --trials N
 #
 # Creates output directory at ./output/:
-#   ./output/${RUNNER_ID}_result.json
+#   ./output/${RUNNER_ID}_results.json
 #   ./output/${RUNNER_ID}.log
 #
 # Example:
@@ -362,7 +362,7 @@ if [ -d "$OUTPUT_DIR" ]; then
 fi
 
 # Generate final results file at required location
-FINAL_RESULTS="${OUTPUT_DIR}/${RUNNER_ID}_result.json"
+FINAL_RESULTS="${OUTPUT_DIR}/${RUNNER_ID}_results.json"
 
 if [ -n "$RESULTS_FILE" ] && [ -f "$RESULTS_FILE" ]; then
     echo "Found raw results: $RESULTS_FILE"
