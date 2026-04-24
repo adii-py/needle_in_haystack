@@ -404,6 +404,12 @@ else
     echo "[WARNING] No results file found. Creating fallback results."
     
     # Create fallback results with failure metrics
+    # Build context sizes array as JSON string
+    CONTEXT_SIZES_JSON="[$(echo ${CONTEXT_SIZES[@]} | tr ' ' ',')]"
+
+    # Convert bash booleans to Python booleans
+    AUTO_BIN_PY="$([ "$AUTO_BIN" = "true" ] && echo "True" || echo "False")"
+
     python3 -c "
 import json
 import sys
@@ -427,8 +433,8 @@ data = {
             'status': 'failed',
             'error': 'Benchmark did not produce results file',
             'n_needles': $N_NEEDLES,
-            'context_sizes': ${CONTEXT_SIZES[@]},
-            'auto_bin': $AUTO_BIN,
+            'context_sizes': $CONTEXT_SIZES_JSON,
+            'auto_bin': $AUTO_BIN_PY,
             'samples_per_bin': $SAMPLES_PER_BIN,
             'seed': $SEED
         }
